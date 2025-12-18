@@ -53,3 +53,45 @@ jobs:
             
             cd $GITHUB_WORKSPACE
           done
+  build-and-push-docker:
+    needs: terraform-deploy
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: 'us-east-1'
+      PROJECT_NAME: 'expense' # Matches your Terraform var.project_name
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and Push Images
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          # Using commit SHA for uniqueness because ECR is IMMUTABLE
+          IMAGE_TAG: ${{ github.sha }} 
+        run: |
+          # 1. Push MySQL
+          echo "Building MySQL..."
+          docker build -t $ECR_REGISTRY/${{ env.PROJECT_NAME }}-mysql:$IMAGE_TAG ./docker/mysql
+          docker push $ECR_REGISTRY/${{ env.PROJECT_NAME }}-mysql:$IMAGE_TAG
+
+          # 2. Push Backend
+          echo "Building Backend..."
+          docker build -t $ECR_REGISTRY/${{ env.PROJECT_NAME }}-backend:$IMAGE_TAG ./docker/backend
+          docker push $ECR_REGISTRY/${{ env.PROJECT_NAME }}-backend:$IMAGE_TAG
+
+          # 3. Push Frontend
+          echo "Building Frontend..."
+          docker build -t $ECR_REGISTRY/${{ env.PROJECT_NAME }}-frontend:$IMAGE_TAG ./docker/frontend
+          docker push $ECR_REGISTRY/${{ env.PROJECT_NAME }}-frontend:$IMAGE_TAG
