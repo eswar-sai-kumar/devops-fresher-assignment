@@ -1,7 +1,7 @@
 name: "Terraform Multi-Layer Deploy"
 
 on:
-  workflow_dispatch: # Keeping it manual as you requested
+  workflow_dispatch:
 
 jobs:
   terraform-deploy:
@@ -10,6 +10,11 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: 'us-east-1'
+      # ANSI Color Codes
+      GREEN: '\033[0;32m'
+      RED: '\033[0;31m'
+      YELLOW: '\033[1;33m'
+      NC: '\033[0m' # No Color
 
     steps:
       - name: Checkout Code
@@ -18,34 +23,33 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_wrapper: false # Disabling the wrapper often fixes formatting issues in logs
+          terraform_wrapper: false 
 
       - name: Terraform Apply All
         run: |
-          # Define the folder list
           folders=("00-vpc" "10-sg" "20-bastion" "30-db" "40-eks" "50-acm" "60-ingress-alb" "70-ecr")
-
-          # Get the root directory path
-          ROOT_DIR=$(pwd)
+          BASE_PATH="$(pwd)/terraform"
 
           for dir in "${folders[@]}"; do
-            echo "********************************************"
-            echo " STARTING LAYER: $dir "
-            echo "********************************************"
+            echo -e "${YELLOW}********************************************${NC}"
+            echo -e "${YELLOW} STARTING LAYER: $dir ${NC}"
+            echo -e "${YELLOW}********************************************${NC}"
             
-            # Navigate into the folder
-            cd "$ROOT_DIR/$dir"
-            
-            # Run commands
-            terraform init -input=false
-            terraform apply -auto-approve -input=false
-            
-            # Check if the last command failed
-            if [ $? -ne 0 ]; then
-              echo "Error: Terraform failed in $dir. Stopping pipeline."
+            if [ -d "$BASE_PATH/$dir" ]; then
+              cd "$BASE_PATH/$dir"
+            else
+              echo -e "${RED}Error: Directory $BASE_PATH/$dir does not exist!${NC}"
               exit 1
             fi
             
-            # Go back to root for the next loop
-            cd "$ROOT_DIR"
+            terraform init -input=false
+            
+            if terraform apply -auto-approve -input=false; then
+              echo -e "${GREEN}SUCCESS: $dir applied successfully!${NC}"
+            else
+              echo -e "${RED}ERROR: Terraform failed in $dir. Stopping pipeline.${NC}"
+              exit 1
+            fi
+            
+            cd $GITHUB_WORKSPACE
           done
