@@ -1,3 +1,12 @@
+resource "aws_ecr_repository" "mysql" {
+  name                 = "${var.project_name}-mysql"
+  image_tag_mutability = "IMMUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+}
+
 resource "aws_ecr_repository" "backend" {
   name                 = "${var.project_name}-backend"
   image_tag_mutability = "IMMUTABLE"
@@ -15,3 +24,4 @@ resource "aws_ecr_repository" "frontend" {
     scan_on_push = true
   }
 }
+
