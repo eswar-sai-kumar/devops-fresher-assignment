@@ -1,7 +1,12 @@
-name: "Terraform Multi-Layer Deploy"
+name: "CI/CD Pipeline to EKS"
 
 on:
   workflow_dispatch:
+
+env:
+  AWS_REGION: 'us-east-1'
+  PROJECT_NAME: 'expense'
+  EKS_CLUSTER_NAME: 'expense-eks' # Ensure this matches your Terraform EKS cluster name
 
 jobs:
   terraform-deploy:
@@ -9,89 +14,79 @@ jobs:
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_REGION: 'us-east-1'
-      # ANSI Color Codes
-      GREEN: '\033[0;32m'
-      RED: '\033[0;31m'
-      YELLOW: '\033[1;33m'
-      NC: '\033[0m' # No Color
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_wrapper: false 
-
+          terraform_wrapper: false
       - name: Terraform Apply All
         run: |
           folders=("00-vpc" "10-sg" "20-bastion" "30-db" "40-eks" "50-acm" "60-ingress-alb" "70-ecr")
-          BASE_PATH="$(pwd)/terraform"
-
           for dir in "${folders[@]}"; do
-            echo -e "${YELLOW}********************************************${NC}"
-            echo -e "${YELLOW} STARTING LAYER: $dir ${NC}"
-            echo -e "${YELLOW}********************************************${NC}"
-            
-            if [ -d "$BASE_PATH/$dir" ]; then
-              cd "$BASE_PATH/$dir"
-            else
-              echo -e "${RED}Error: Directory $BASE_PATH/$dir does not exist!${NC}"
-              exit 1
-            fi
-            
+            cd terraform/$dir
             terraform init -input=false
-            
-            if terraform apply -auto-approve -input=false; then
-              echo -e "${GREEN}SUCCESS: $dir applied successfully!${NC}"
-            else
-              echo -e "${RED}ERROR: Terraform failed in $dir. Stopping pipeline.${NC}"
-              exit 1
-            fi
-            
-            cd $GITHUB_WORKSPACE
+            terraform apply -auto-approve -input=false
+            cd ${{ github.workspace }}
           done
+
   build-and-push-docker:
     needs: terraform-deploy
     runs-on: ubuntu-latest
-    env:
-      AWS_REGION: 'us-east-1'
-      PROJECT_NAME: 'expense' # Matches your Terraform var.project_name
-    
+    outputs:
+      image_tag: ${{ github.sha }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
-
       - name: Build and Push Images
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          # Using commit SHA for uniqueness because ECR is IMMUTABLE
-          IMAGE_TAG: ${{ github.sha }} 
+          IMAGE_TAG: ${{ github.sha }}
         run: |
-          # 1. Push MySQL
-          echo "Building MySQL..."
-          docker build -t $ECR_REGISTRY/${{ env.PROJECT_NAME }}-mysql:$IMAGE_TAG ./docker/mysql
-          docker push $ECR_REGISTRY/${{ env.PROJECT_NAME }}-mysql:$IMAGE_TAG
+          for app in mysql backend frontend; do
+            docker build -t $ECR_REGISTRY/${{ env.PROJECT_NAME }}-$app:$IMAGE_TAG ./docker/$app
+            docker push $ECR_REGISTRY/${{ env.PROJECT_NAME }}-$app:$IMAGE_TAG
+          done
 
-          # 2. Push Backend
-          echo "Building Backend..."
-          docker build -t $ECR_REGISTRY/${{ env.PROJECT_NAME }}-backend:$IMAGE_TAG ./docker/backend
-          docker push $ECR_REGISTRY/${{ env.PROJECT_NAME }}-backend:$IMAGE_TAG
+  deploy-sit:
+    needs: build-and-push-docker
+    runs-on: ubuntu-latest
+    environment: sit  # Triggers Manual Approval
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Deploy to SIT
+        run: |
+          ./.github/scripts/deploy.sh sit ${{ github.sha }} ${{ secrets.AWS_ACCESS_KEY_ID }} ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-          # 3. Push Frontend
-          echo "Building Frontend..."
-          docker build -t $ECR_REGISTRY/${{ env.PROJECT_NAME }}-frontend:$IMAGE_TAG ./docker/frontend
-          docker push $ECR_REGISTRY/${{ env.PROJECT_NAME }}-frontend:$IMAGE_TAG
+  deploy-staging:
+    needs: deploy-sit
+    runs-on: ubuntu-latest
+    environment: staging  # Triggers Manual Approval
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Deploy to Staging
+        run: |
+          ./.github/scripts/deploy.sh staging ${{ github.sha }} ${{ secrets.AWS_ACCESS_KEY_ID }} ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+  deploy-production:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    environment: production  # Triggers Manual Approval
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Deploy to Production
+        run: |
+          ./.github/scripts/deploy.sh production ${{ github.sha }} ${{ secrets.AWS_ACCESS_KEY_ID }} ${{ secrets.AWS_SECRET_ACCESS_KEY }}
