@@ -1,24 +1,27 @@
-name: "Terraform Multi-Layer Deploy"
+name: "Expense App CI/CD Pipeline"
 
 on:
   workflow_dispatch:
 
+env:
+  AWS_REGION: 'us-east-1'
+  PROJECT_NAME: 'expense'
+  EKS_CLUSTER_NAME: 'expense-eks' # Matches your Terraform EKS output
+
 jobs:
   terraform-deploy:
     runs-on: ubuntu-latest
-    env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_REGION: 'us-east-1'
-      # ANSI Color Codes
-      GREEN: '\033[0;32m'
-      RED: '\033[0;31m'
-      YELLOW: '\033[1;33m'
-      NC: '\033[0m' # No Color
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      # Using the official action to prevent "InvalidClientTokenId" 403 errors
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -29,37 +32,25 @@ jobs:
         run: |
           folders=("00-vpc" "10-sg" "20-bastion" "30-db" "40-eks" "50-acm" "60-ingress-alb" "70-ecr")
           BASE_PATH="$(pwd)/terraform"
-
+          
           for dir in "${folders[@]}"; do
-            echo -e "${YELLOW}********************************************${NC}"
-            echo -e "${YELLOW} STARTING LAYER: $dir ${NC}"
-            echo -e "${YELLOW}********************************************${NC}"
-            
+            echo "STARTING LAYER: $dir"
             if [ -d "$BASE_PATH/$dir" ]; then
               cd "$BASE_PATH/$dir"
+              terraform init -input=false
+              terraform apply -auto-approve -input=false
+              cd $GITHUB_WORKSPACE
             else
-              echo -e "${RED}Error: Directory $BASE_PATH/$dir does not exist!${NC}"
+              echo "Error: Directory $dir not found"
               exit 1
             fi
-            
-            terraform init -input=false
-            
-            if terraform apply -auto-approve -input=false; then
-              echo -e "${GREEN}SUCCESS: $dir applied successfully!${NC}"
-            else
-              echo -e "${RED}ERROR: Terraform failed in $dir. Stopping pipeline.${NC}"
-              exit 1
-            fi
-            
-            cd $GITHUB_WORKSPACE
           done
+
   build-and-push-docker:
     needs: terraform-deploy
     runs-on: ubuntu-latest
-    env:
-      AWS_REGION: 'us-east-1'
-      PROJECT_NAME: 'expense' # Matches your Terraform var.project_name
-    
+    outputs:
+      image_tag: ${{ github.sha }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -78,53 +69,64 @@ jobs:
       - name: Build and Push Images
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          # Using commit SHA for uniqueness because ECR is IMMUTABLE
           IMAGE_TAG: ${{ github.sha }} 
         run: |
-          # 1. Push MySQL
-          echo "Building MySQL..."
-          docker build -t $ECR_REGISTRY/${{ env.PROJECT_NAME }}-mysql:$IMAGE_TAG ./docker/mysql
-          docker push $ECR_REGISTRY/${{ env.PROJECT_NAME }}-mysql:$IMAGE_TAG
-
-          # 2. Push Backend
-          echo "Building Backend..."
-          docker build -t $ECR_REGISTRY/${{ env.PROJECT_NAME }}-backend:$IMAGE_TAG ./docker/backend
-          docker push $ECR_REGISTRY/${{ env.PROJECT_NAME }}-backend:$IMAGE_TAG
-
-          # 3. Push Frontend
-          echo "Building Frontend..."
-          docker build -t $ECR_REGISTRY/${{ env.PROJECT_NAME }}-frontend:$IMAGE_TAG ./docker/frontend
-          docker push $ECR_REGISTRY/${{ env.PROJECT_NAME }}-frontend:$IMAGE_TAG
+          for app in mysql backend frontend; do
+            echo "Building $app..."
+            docker build -t $ECR_REGISTRY/${{ env.PROJECT_NAME }}-$app:$IMAGE_TAG ./docker/$app
+            docker push $ECR_REGISTRY/${{ env.PROJECT_NAME }}-$app:$IMAGE_TAG
+          done
 
   deploy-sit:
     needs: build-and-push-docker
     runs-on: ubuntu-latest
-    environment: sit  # Triggers Manual Approval
+    environment: sit  # Requires manual approval in GitHub Settings
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Deploy to SIT
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Kubernetes Deploy
         run: |
-          ./.github/scripts/deploy.sh sit ${{ github.sha }} ${{ secrets.AWS_ACCESS_KEY_ID }} ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          chmod +x .github/scripts/deploy.sh
+          ./.github/scripts/deploy.sh sit ${{ github.sha }}
 
   deploy-staging:
     needs: deploy-sit
     runs-on: ubuntu-latest
-    environment: staging  # Triggers Manual Approval
+    environment: staging
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Deploy to Staging
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Kubernetes Deploy
         run: |
-          ./.github/scripts/deploy.sh staging ${{ github.sha }} ${{ secrets.AWS_ACCESS_KEY_ID }} ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          chmod +x .github/scripts/deploy.sh
+          ./.github/scripts/deploy.sh staging ${{ github.sha }}
 
   deploy-production:
     needs: deploy-staging
     runs-on: ubuntu-latest
-    environment: production  # Triggers Manual Approval
+    environment: production
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Deploy to Production
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Kubernetes Deploy
         run: |
-          ./.github/scripts/deploy.sh production ${{ github.sha }} ${{ secrets.AWS_ACCESS_KEY_ID }} ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          chmod +x .github/scripts/deploy.sh
+          ./.github/scripts/deploy.sh production ${{ github.sha }}
