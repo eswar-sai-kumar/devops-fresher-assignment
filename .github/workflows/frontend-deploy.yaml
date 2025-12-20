@@ -14,9 +14,10 @@ env:
   DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
 
 jobs:
-  # LAYER 1: Infrastructure Provisioning
   infrastructure:
     runs-on: ubuntu-latest
+    outputs:
+      tg_arn: ${{ steps.save-arn.outputs.TG_ARN }} # Map step output to job output
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -33,7 +34,8 @@ jobs:
         with:
           terraform_wrapper: false 
 
-      - name: Terraform Apply (Sequential Layers)
+      - name: Terraform Apply (Layers)
+        id: apply
         run: |
           folders=("00-vpc" "10-sg" "20-bastion" "30-db" "40-eks" "50-acm" "60-ingress-alb")
           for dir in "${folders[@]}"; do
@@ -41,9 +43,17 @@ jobs:
             cd ${{ github.workspace }}/terraform/$dir
             terraform init
             terraform apply -auto-approve
+            
+            if [ "$dir" == "60-ingress-alb" ]; then
+              # Save to a temporary file to bypass subshell scope issues
+              echo "$(terraform output -raw frontend_target_group_arn)" > /tmp/tg_arn
+            fi
           done
 
-  # LAYER 2: Backend Service
+      - name: Save ARN to Output
+        id: save-arn
+        run: echo "TG_ARN=$(cat /tmp/tg_arn)" >> $GITHUB_OUTPUT
+
   backend-deploy:
     needs: infrastructure
     if: github.event.inputs.deploy_apps == 'true'
@@ -83,12 +93,13 @@ jobs:
       - name: Helm Deploy Backend
         working-directory: ./backend/helm
         run: |
+          IMAGE_FULL="${{ env.DOCKERHUB_USER }}/expense-backend:${{ env.BACKEND_VERSION }}"
           helm upgrade --install backend . \
-            --namespace expense --create-namespace \
-            --set deployment.image=${{ env.DOCKERHUB_USER }}/expense-backend:${{ env.BACKEND_VERSION }} \
+            --namespace expense \
+            --create-namespace \
+            --set deployment.image=$IMAGE_FULL \
             --set deployment.imagePullPolicy=Always
 
-  # LAYER 3: Frontend Service
   frontend-deploy:
     needs: infrastructure
     if: github.event.inputs.deploy_apps == 'true'
@@ -129,6 +140,8 @@ jobs:
         working-directory: ./frontend/helm
         run: |
           helm upgrade --install frontend . \
-            --namespace expense --create-namespace \
+            --namespace expense \
+            --create-namespace \
             --set deployment.image=${{ env.DOCKERHUB_USER }}/expense-frontend:${{ env.FRONTEND_VERSION }} \
+            --set targetGroupArn=${{ needs.infrastructure.outputs.tg_arn }} \
             --set deployment.imagePullPolicy=Always

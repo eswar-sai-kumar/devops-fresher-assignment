@@ -1,5 +1,6 @@
 configmap:
   port: 8080
 deployment:
+  image: "eswarsaikumar/expense-frontend:IMAGE_VERSION"
   imageVersion: IMAGE_VERSION
   replicas: 2

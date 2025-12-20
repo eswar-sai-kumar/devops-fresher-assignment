@@ -1,4 +1,4 @@
 deployment:
-  imageVersion: IMAGE_VERSION # this is called placeholder
-  registry: ""
+  image: "eswarsaikumar/expense-backend:IMAGE_VERSION" # Added this
+  imageVersion: IMAGE_VERSION
   replicas: 2
