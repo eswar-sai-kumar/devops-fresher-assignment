@@ -138,20 +138,20 @@ jobs:
       # --- AUTOMATED FIX FOR TARGETGROUPBINDING ERROR ---
       - name: Install Load Balancer Controller CRDs
         run: |
-          kubectl apply -k "github.com/aws/eks-charts/stable/aws-load-balancer-controller/crds?ref=master"
-        # This teaches the cluster about 'TargetGroupBinding'
+          # Use direct manifest file to avoid Kustomize accumulation errors
+          kubectl apply -f https://raw.githubusercontent.com/aws/eks-charts/master/stable/aws-load-balancer-controller/crds/crds.yaml
+        # This registers 'TargetGroupBinding' without the Kustomize merge error
 
       - name: Install AWS Load Balancer Controller
         run: |
           helm repo add eks https://aws.github.io/eks-charts
           helm repo update
+          # Ensure the controller is installed to process the CRDs
           helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller \
             -n kube-system \
             --set clusterName=${{ env.EKS_CLUSTER_NAME }} \
             --set serviceAccount.create=true \
             --set serviceAccount.name=aws-load-balancer-controller
-        # This processes the 'TargetGroupBinding' resources
-
       - name: Helm Deploy Frontend
         working-directory: ./frontend/helm
         run: |
