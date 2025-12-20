@@ -17,7 +17,7 @@ jobs:
   infrastructure:
     runs-on: ubuntu-latest
     outputs:
-      tg_arn: ${{ steps.save-arn.outputs.TG_ARN }} # Map step output to job output
+      tg_arn: ${{ steps.save-arn.outputs.TG_ARN }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -45,7 +45,6 @@ jobs:
             terraform apply -auto-approve
             
             if [ "$dir" == "60-ingress-alb" ]; then
-              # Save to a temporary file to bypass subshell scope issues
               echo "$(terraform output -raw frontend_target_group_arn)" > /tmp/tg_arn
             fi
           done
@@ -135,6 +134,23 @@ jobs:
 
       - name: Update Kubeconfig
         run: aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
+
+      # --- AUTOMATED FIX FOR TARGETGROUPBINDING ERROR ---
+      - name: Install Load Balancer Controller CRDs
+        run: |
+          kubectl apply -k "github.com/aws/eks-charts/stable/aws-load-balancer-controller/crds?ref=master"
+        # This teaches the cluster about 'TargetGroupBinding'
+
+      - name: Install AWS Load Balancer Controller
+        run: |
+          helm repo add eks https://aws.github.io/eks-charts
+          helm repo update
+          helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller \
+            -n kube-system \
+            --set clusterName=${{ env.EKS_CLUSTER_NAME }} \
+            --set serviceAccount.create=true \
+            --set serviceAccount.name=aws-load-balancer-controller
+        # This processes the 'TargetGroupBinding' resources
 
       - name: Helm Deploy Frontend
         working-directory: ./frontend/helm
