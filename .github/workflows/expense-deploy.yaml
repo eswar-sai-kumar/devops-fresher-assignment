@@ -92,16 +92,15 @@ jobs:
         run: |
           aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
 
+      
       - name: Helm Deploy to EKS
         working-directory: ./backend/helm
         run: |
           IMAGE_NAME="${{ secrets.DOCKERHUB_USERNAME }}/expense-backend"
           
-          # Replace placeholder in values.yaml
-          sed -i "s/IMAGE_VERSION/${{ env.APP_VERSION }}/g" values.yaml
-          
-          # Deploy with Helm
+          # We force 'Always' and provide the correct Docker Hub image path
           helm upgrade --install backend . \
             --namespace expense \
             --create-namespace \
-            --set deployment.image=$IMAGE_NAME:${{ env.APP_VERSION }}
+            --set deployment.image=$IMAGE_NAME:${{ env.APP_VERSION }} \
+            --set deployment.imagePullPolicy=Always
