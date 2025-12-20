@@ -51,16 +51,11 @@ jobs:
         working-directory: ./backend
         id: prep
         run: |
-          # Read version from package.json
           VERSION=$(node -p "require('./package.json').version")
           echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          
-          # Install Dependencies
           npm install
-          ls -ltr
           echo "Application version: $VERSION"
-
       - name: Build Zip Artifact
         working-directory: ./backend
         run: |
