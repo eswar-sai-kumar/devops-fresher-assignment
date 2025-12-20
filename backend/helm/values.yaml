@@ -1,3 +1,4 @@
 deployment:
   imageVersion: IMAGE_VERSION # this is called placeholder
+  registry: ""
   replicas: 2
