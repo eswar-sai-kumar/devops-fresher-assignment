@@ -1,0 +1,134 @@
+name: "Unified Expense App CI/CD"
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_apps:
+        description: 'Build and deploy applications after infra?'
+        type: boolean
+        default: true
+
+env:
+  AWS_REGION: 'us-east-1'
+  EKS_CLUSTER_NAME: 'expense-dev' 
+  DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+
+jobs:
+  # LAYER 1: Infrastructure Provisioning
+  infrastructure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false 
+
+      - name: Terraform Apply (Sequential Layers)
+        run: |
+          folders=("00-vpc" "10-sg" "20-bastion" "30-db" "40-eks" "50-acm" "60-ingress-alb")
+          for dir in "${folders[@]}"; do
+            echo "Applying layer: $dir"
+            cd ${{ github.workspace }}/terraform/$dir
+            terraform init
+            terraform apply -auto-approve
+          done
+
+  # LAYER 2: Backend Service
+  backend-deploy:
+    needs: infrastructure
+    if: github.event.inputs.deploy_apps == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Read Version
+        working-directory: ./backend
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "BACKEND_VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and Push Backend
+        working-directory: ./backend
+        run: |
+          docker build -t ${{ env.DOCKERHUB_USER }}/expense-backend:${{ env.BACKEND_VERSION }} .
+          docker push ${{ env.DOCKERHUB_USER }}/expense-backend:${{ env.BACKEND_VERSION }}
+      
+      - name: Configure AWS & Update Kubeconfig
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update Kubeconfig
+        run: aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
+
+      - name: Helm Deploy Backend
+        working-directory: ./backend/helm
+        run: |
+          helm upgrade --install backend . \
+            --namespace expense --create-namespace \
+            --set deployment.image=${{ env.DOCKERHUB_USER }}/expense-backend:${{ env.BACKEND_VERSION }} \
+            --set deployment.imagePullPolicy=Always
+
+  # LAYER 3: Frontend Service
+  frontend-deploy:
+    needs: infrastructure
+    if: github.event.inputs.deploy_apps == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Read Version
+        working-directory: ./frontend
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "FRONTEND_VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and Push Frontend
+        working-directory: ./frontend
+        run: |
+          docker build -t ${{ env.DOCKERHUB_USER }}/expense-frontend:${{ env.FRONTEND_VERSION }} .
+          docker push ${{ env.DOCKERHUB_USER }}/expense-frontend:${{ env.FRONTEND_VERSION }}
+      
+      - name: Configure AWS & Update Kubeconfig
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update Kubeconfig
+        run: aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
+
+      - name: Helm Deploy Frontend
+        working-directory: ./frontend/helm
+        run: |
+          helm upgrade --install frontend . \
+            --namespace expense --create-namespace \
+            --set deployment.image=${{ env.DOCKERHUB_USER }}/expense-frontend:${{ env.FRONTEND_VERSION }} \
+            --set deployment.imagePullPolicy=Always
