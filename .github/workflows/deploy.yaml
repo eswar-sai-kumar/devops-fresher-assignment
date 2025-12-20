@@ -1,0 +1,84 @@
+name: "Expense App CI/CD Pipeline"
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_app:
+        description: 'Do you want to build and deploy the application after infra?'
+        type: boolean
+        default: true
+
+env:
+  AWS_REGION: 'us-east-1'
+  EKS_CLUSTER_NAME: 'expense-dev' # Verify this matches your TF 40-eks name
+
+jobs:
+  infrastructure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false 
+
+      - name: Terraform Apply (Layers)
+        run: |
+          folders=("00-vpc" "10-sg" "20-bastion" "30-db" "40-eks" "50-acm" "60-ingress-alb" "70-ecr")
+          for dir in "${folders[@]}"; do
+            echo "Applying layer: $dir"
+            cd ${{ github.workspace }}/terraform/$dir
+            terraform init
+            terraform apply -auto-approve
+          done
+
+  backend-app:
+    needs: infrastructure
+    if: github.event.inputs.deploy_app == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and Push Backend
+        id: build-image
+        working-directory: ./backend
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          REGISTRY=${{ steps.login-ecr.registry }}
+          REPOSITORY="expense-backend" # Matches your 70-ecr name
+          
+          docker build -t $REGISTRY/$REPOSITORY:$VERSION .
+          docker push $REGISTRY/$REPOSITORY:$VERSION
+          echo "app_version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update Kubeconfig
+        run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+
+      - name: Helm Deploy Backend
+        working-directory: ./backend/helm
+        run: |
+          VERSION=$(node -p "require('../package.json').version")
+          sed -i "s/IMAGE_VERSION/${VERSION}/g" values.yaml
+          # Use upgrade --install to handle first-time deployment
+          helm upgrade --install backend . --namespace expense --create-namespace
