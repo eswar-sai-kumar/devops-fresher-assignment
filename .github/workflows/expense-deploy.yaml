@@ -1,12 +1,7 @@
-name: "Unified Expense App CI/CD"
+name: "Expense App CI/CD"
 
 on:
   workflow_dispatch:
-    inputs:
-      deploy_apps:
-        description: 'Build and deploy applications after infra?'
-        type: boolean
-        default: true
 
 env:
   AWS_REGION: 'us-east-1'
@@ -55,7 +50,6 @@ jobs:
 
   backend-deploy:
     needs: infrastructure
-    if: github.event.inputs.deploy_apps == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -100,8 +94,7 @@ jobs:
             --set deployment.imagePullPolicy=Always
 
   frontend-deploy:
-    needs: infrastructure
-    if: github.event.inputs.deploy_apps == 'true'
+    needs: backend-deploy
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
