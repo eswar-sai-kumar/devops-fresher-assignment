@@ -35,6 +35,9 @@
 - **Load Balancing**: AWS Application Load Balancer
 - **Monitoring**: Built-in logging and health checks
 
+### Project Architecture
+![alt text](project-architecture.svg)
+
 ---
 ## CI/CD Architecture
 
