@@ -36,6 +36,157 @@
 - **Monitoring**: Built-in logging and health checks
 
 ---
+## CI/CD Architecture
+
+This project uses a **stage-wise CI/CD pipeline** built with **GitHub Actions**, **Terraform**, **Docker**, **Helm**, and **Amazon EKS** to automate infrastructure provisioning and application deployment.
+
+The pipeline is manually triggered and deploys the application in a controlled order:
+Infrastructure → Backend → Frontend.
+
+Manual Trigger (workflow_dispatch)
+↓
+Terraform Infrastructure Provisioning
+↓
+Backend Build & Deploy (Docker + Helm)
+↓
+Frontend Build & Deploy (Docker + Helm + ALB)
+
+
+---
+
+### 🧱 Stage 1: Infrastructure Provisioning
+
+**Job Name:** infrastructure  
+**Trigger:** Manual (`workflow_dispatch`)
+
+#### Description
+This stage provisions all required AWS resources using Terraform in a layered approach to maintain dependencies.
+
+#### Terraform Layers
+- VPC
+- Security Groups
+- Bastion Host
+- RDS (Database)
+- Amazon EKS Cluster
+- ACM Certificate
+- Application Load Balancer (Ingress)
+
+#### Key Actions
+- Terraform `init` and `apply` for each layer
+- Extracts **Frontend Target Group ARN**
+- Exposes Target Group ARN as a pipeline output
+
+#### Tools Used
+- Terraform
+- AWS CLI
+- GitHub Actions
+
+---
+
+### 🧩 Stage 2: Backend CI/CD
+
+**Job Name:** backend-deploy  
+**Depends On:** infrastructure
+
+#### Description
+This stage builds, pushes, and deploys the backend service to Amazon EKS.
+
+#### Steps
+1. Read backend version from `package.json`
+2. Build Docker image for backend
+3. Push image to Docker Hub
+4. Update kubeconfig for EKS
+5. Deploy backend using Helm
+
+#### Deployment Details
+- Kubernetes Namespace: `expense`
+- Image Tagging: Version-based
+- Deployment Strategy: Rolling updates
+
+#### Tools Used
+- Docker
+- Docker Hub
+- Helm
+- Amazon EKS
+
+---
+
+### 🎨 Stage 3: Frontend CI/CD
+
+**Job Name:** frontend-deploy  
+**Depends On:** backend-deploy
+
+#### Description
+This stage builds and deploys the frontend application and integrates it with AWS ALB.
+
+#### Steps
+1. Read frontend version from `package.json`
+2. Build Docker image for frontend
+3. Push image to Docker Hub
+4. Install AWS Load Balancer Controller CRDs
+5. Deploy AWS Load Balancer Controller
+6. Wait for controller and webhook readiness
+7. Deploy frontend using Helm with Target Group binding
+
+#### Deployment Details
+- Public access via Application Load Balancer
+- Target Group ARN injected dynamically
+- Image pull policy set to `Always`
+
+---
+
+### 🔐 Secrets & Configuration
+
+#### GitHub Secrets
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `DOCKERHUB_USERNAME`
+- `DOCKERHUB_TOKEN`
+
+#### Environment Variables
+- `AWS_REGION`
+- `EKS_CLUSTER_NAME`
+- Application version from `package.json`
+
+---
+
+### 📦 Container & Deployment Strategy
+
+- Containerization: Docker
+- Orchestration: Kubernetes (EKS)
+- Packaging: Helm Charts
+- Ingress: AWS Application Load Balancer
+- Image Versioning: Semantic versioning
+
+---
+
+### ✅ Benefits of This CI/CD Design
+
+- Fully automated end-to-end deployment
+- Infrastructure as Code (IaC)
+- Version-controlled Docker images
+- Scalable and production-ready setup
+- Secure secret handling
+- Zero-downtime deployments
+
+---
+
+## 🛠️ Tech Stack
+
+- CI/CD: GitHub Actions
+- Infrastructure: Terraform
+- Containers: Docker
+- Orchestration: Kubernetes (Amazon EKS)
+- Deployment: Helm
+- Cloud: AWS
+- Ingress: Application Load Balancer
+
+
+---
+
+## 🔁 Pipeline Flow
+
+---
 
 ## 📦 Installation
 
