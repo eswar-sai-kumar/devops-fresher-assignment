@@ -1,4 +1,3 @@
-```markdown
 # 🌟 Expense Tracker - 3-Tier Architecture
 
 [![License: ISC](https://img.shields.io/badge/license-ISC-blue.svg)](https://opensource.org/licenses/ISC)
