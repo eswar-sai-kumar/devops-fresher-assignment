@@ -36,8 +36,7 @@
 - **Monitoring**: Built-in logging and health checks
 
 ### Project Architecture
-![alt text](project-architecture.svg)
-
+![alt text](project-architecture.png)
 ---
 ## CI/CD Architecture
 
