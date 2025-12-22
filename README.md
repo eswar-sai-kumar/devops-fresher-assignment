@@ -79,11 +79,6 @@ This stage provisions all required AWS resources using Terraform in a layered ap
 - Extracts **Frontend Target Group ARN**
 - Exposes Target Group ARN as a pipeline output
 
-#### Tools Used
-- Terraform
-- AWS CLI
-- GitHub Actions
-
 ---
 
 ### 🧩 Stage 2: Backend CI/CD
@@ -105,12 +100,6 @@ This stage builds, pushes, and deploys the backend service to Amazon EKS.
 - Kubernetes Namespace: `expense`
 - Image Tagging: Version-based
 - Deployment Strategy: Rolling updates
-
-#### Tools Used
-- Docker
-- Docker Hub
-- Helm
-- Amazon EKS
 
 ---
 
