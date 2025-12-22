@@ -71,6 +71,9 @@ This stage provisions all required AWS resources using Terraform in a layered ap
 - ACM Certificate
 - Application Load Balancer (Ingress)
 
+#### Terraform Architecture
+![alt text](terraform/k8-infra.drawio.svg)
+
 #### Key Actions
 - Terraform `init` and `apply` for each layer
 - Extracts **Frontend Target Group ARN**
