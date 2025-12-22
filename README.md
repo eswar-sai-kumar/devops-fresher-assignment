@@ -167,25 +167,7 @@ This stage builds and deploys the frontend application and integrates it with AW
    cd devops-fresher-assignment
    ```
 
-2. **Set up AWS credentials**:
-   ```bash
-   aws configure
-   ```
-   Enter your AWS Access Key ID, Secret Access Key, default region (e.g., `us-east-1`), and default output format (e.g., `json`).
-
-3. **Deploy Infrastructure**:
-   ```bash
-   # Navigate to Terraform directory
-   cd terraform
-
-   # Initialize Terraform
-   terraform init
-
-   # Apply Terraform configuration
-   terraform apply -auto-approve
-   ```
-
-4. **Run Github workflow**
+2. **Run Github workflow**
    - Creates infra using terraform
    - Build docker image and pushed to docker
    - Run the docker image using Kubernetes
@@ -245,31 +227,6 @@ devops-fresher-assignment/
 
 ---
 
-## 🔧 Configuration
-
-### **Environment Variables**
-
-The backend application uses the following environment variables:
-
-| Variable      | Description                          | Default Value                     |
-|---------------|--------------------------------------|-----------------------------------|
-| `DB_HOST`     | MySQL database host                   | `db-dev.eswarsaikumar.site`       |
-| `DB_USER`     | MySQL database username               | `expense`                         |
-| `DB_PWD`      | MySQL database password               | `ExpenseApp@1`                    |
-| `DB_DATABASE` | MySQL database name                   | `transactions`                    |
-
-### **Customizing the Application**
-
-1. **Database Configuration**:
-   Modify the `DbConfig.js` file in the backend directory to change database credentials.
-
-2. **Helm Values**:
-   Update the Helm values in the `backend/helm/values.yaml` and `frontend/helm/values.yaml` files to customize deployment settings like replica counts and image versions.
-
-3. **Terraform Variables**:
-   Customize the Terraform variables in the respective modules to adjust infrastructure settings.
-
----
 
 ### **Future Improvements**
 
