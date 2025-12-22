@@ -45,14 +45,6 @@ This project uses a **stage-wise CI/CD pipeline** built with **GitHub Actions**,
 The pipeline is manually triggered and deploys the application in a controlled order:
 Infrastructure → Backend → Frontend.
 
-Manual Trigger (workflow_dispatch)
-↓
-Terraform Infrastructure Provisioning
-↓
-Backend Build & Deploy (Docker + Helm)
-↓
-Frontend Build & Deploy (Docker + Helm + ALB)
-
 
 ---
 
