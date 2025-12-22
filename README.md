@@ -8,11 +8,17 @@
 ✅ **Automated CI/CD Pipeline** - Fully automated deployment using GitHub Actions
 
 ✅ **Infrastructure as Code** - AWS resources provisioned with Terraform
+
 ✅ **Containerized Applications** - Docker containers for both frontend and backend
+
 ✅ **Kubernetes Orchestration** - Scalable deployment using Helm charts
+
 ✅ **Database Management** - MySQL database with proper security configurations
+
 ✅ **Health Monitoring** - Built-in health check endpoints
+
 ✅ **Responsive UI** - Modern React-based frontend interface
+
 ✅ **Scalability** - Horizontal pod autoscaling for backend services
 
 ---
@@ -20,7 +26,7 @@
 ## 🛠️ Tech Stack
 
 ### **Primary Languages & Tools**
-- **Infrastructure Provisioning**: HCL (Terraform)
+- **Infrastructure Provisioning**: Terraform
 - **Backend**: Node.js, Express.js, MySQL
 - **Frontend**: React.js
 - **Containerization**: Docker
@@ -28,14 +34,6 @@
 - **CI/CD**: GitHub Actions
 - **Load Balancing**: AWS Application Load Balancer
 - **Monitoring**: Built-in logging and health checks
-
-### **System Requirements**
-- Docker (v20.10.0+)
-- Kubernetes (v1.20.0+)
-- Terraform (v1.0.0+)
-- AWS Account with appropriate permissions
-- Node.js (v16.0.0+)
-- Python (for Terraform)
 
 ---
 
