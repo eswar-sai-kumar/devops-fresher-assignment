@@ -283,53 +283,6 @@ We welcome contributions from the community! Here's how you can contribute:
 
 ---
 
-## 📝 License
-
-This project is licensed under the **ISC License**. See the [LICENSE](LICENSE) file for details.
-
----
-
-## 👥 Authors & Contributors
-
-**Maintainers**:
-- [Your Name](https://github.com/yourusername) - Initial work
-
-**Contributors**:
-- [Contributor Name](https://github.com/contributorusername) - Contribution details
-
----
-
-## 🐛 Issues & Support
-
-### **Reporting Issues**
-
-If you encounter any problems or have feature requests, please open an issue on GitHub. When reporting bugs, please include:
-
-- Your operating system and version
-- Node.js and npm versions
-- Docker and Kubernetes versions
-- Terraform version
-- Steps to reproduce the issue
-- Any error messages or logs
-
-### **Getting Help**
-
-- **Discussions**: Join our [GitHub Discussions](https://github.com/yourusername/devops-fresher-assignment/discussions) for general questions.
-- **Community**: Find us on [DevOps Slack](https://devops.community/) in the `#expense-tracker` channel.
-
-### **FAQ**
-
-**Q: How do I update the database schema?**
-A: Modify the `backend/schema/backend.sql` file and run the SQL script manually or integrate it into your CI/CD pipeline.
-
-**Q: Can I deploy this to a different cloud provider?**
-A: Yes! The Terraform modules can be adapted for other cloud providers like Azure or GCP by modifying the provider configurations.
-
-**Q: How do I scale the application?**
-A: Use the Helm values to adjust the number of replicas. The backend also includes Horizontal Pod Autoscaler (HPA) configuration to automatically scale based on CPU usage.
-
----
-
 ## 🗺️ Roadmap
 
 ### **Planned Features**
@@ -340,25 +293,9 @@ A: Use the Helm values to adjust the number of replicas. The backend also includ
 - [ ] **Multi-Currency Support**: Add support for different currencies.
 - [ ] **Advanced Analytics**: Implement charts and graphs for expense analysis.
 
-### **Known Issues**
-
-- [ ] **Database Backup**: Implement automated database backups.
-- [ ] **Logging**: Enhance logging for better debugging and monitoring.
-- [ ] **Security**: Conduct a security audit and apply necessary patches.
-
 ### **Future Improvements**
 
 - **Serverless Backend**: Migrate backend to AWS Lambda for cost efficiency.
 - **Microservices**: Split backend into multiple microservices for better scalability.
 - **CI/CD Pipeline Enhancements**: Add more stages for testing and security scanning.
 
----
-
-## 🚀 Get Started Today!
-
-Ready to track your expenses with a robust, scalable, and fully automated solution? Follow the installation steps above and start deploying your own Expense Tracker today!
-
-🌟 **Star this repository** to show your support and stay updated with the latest developments!
-
-📢 **Join our community** and contribute to making this project even better!
-```
