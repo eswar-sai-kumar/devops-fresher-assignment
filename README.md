@@ -234,37 +234,9 @@ This stage builds and deploys the frontend application and integrates it with AW
 
 ## 🎯 Usage
 
-### **API Endpoints**
-
-The backend provides the following RESTful API endpoints:
-
-| Endpoint          | Method | Description                     | Example Request Body                     |
-|-------------------|--------|---------------------------------|------------------------------------------|
-| `/health`         | GET    | Health check                    | -                                        |
-| `/transaction`    | POST   | Add a new transaction           | `{ "amount": 100, "desc": "Grocery" }`    |
-| `/transaction`    | GET    | Get all transactions            | -                                        |
-| `/transaction`    | DELETE | Delete all transactions         | -                                        |
-| `/transaction/id` | DELETE | Delete a specific transaction   | `{ "id": 1 }`                            |
-| `/transaction/id` | GET    | Get a specific transaction      | -                                        |
-
-### **Example Usage with cURL**
-
-```bash
-# Add a new transaction
-curl -X POST http://<your-load-balancer-ip>/api/transaction \
-  -H "Content-Type: application/json" \
-  -d '{"amount": 50, "desc": "Coffee"}'
-
-# Get all transactions
-curl http://<your-load-balancer-ip>/api/transaction
-
-# Delete all transactions
-curl -X DELETE http://<your-load-balancer-ip>/api/transaction
-```
-
 ### **Frontend Access**
 
-After deployment, access the frontend through the Application Load Balancer URL provided by Terraform. The frontend will automatically fetch and display transactions from the backend API.
+After deployment, access the frontend through the Application Load Balancer URL or Route53 provided by Terraform. The frontend will automatically fetch and display transactions from the backend API.
 
 ---
 
@@ -339,72 +311,6 @@ The backend application uses the following environment variables:
    Customize the Terraform variables in the respective modules to adjust infrastructure settings.
 
 ---
-
-## 🤝 Contributing
-
-We welcome contributions from the community! Here's how you can contribute:
-
-### **Development Setup**
-
-1. **Fork the repository**:
-   ```bash
-   git clone https://github.com/yourusername/devops-fresher-assignment.git
-   cd devops-fresher-assignment
-   ```
-
-2. **Set up a development environment**:
-   ```bash
-   # Install dependencies
-   cd backend
-   npm install
-
-   cd ../frontend
-   npm install
-   ```
-
-3. **Run locally**:
-   ```bash
-   # Start backend
-   cd backend
-   node index.js
-
-   # Start frontend (ensure backend is running)
-   cd ../frontend
-   npm start
-   ```
-
-### **Code Style Guidelines**
-
-- **Backend**: Use ES6+ JavaScript with consistent indentation (2 spaces).
-- **Frontend**: Follow React best practices and use Prettier for code formatting.
-- **Terraform**: Follow the official Terraform style guide and use consistent naming conventions.
-- **Docker**: Keep Dockerfiles minimal and use multi-stage builds where possible.
-
-### **Pull Request Process**
-
-1. Create a new branch for your feature or bugfix:
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-2. Make your changes and commit them with descriptive messages:
-   ```bash
-   git commit -m "feat: add new transaction validation"
-   ```
-
-3. Push your branch and open a pull request to the `main` branch.
-
----
-
-## 🗺️ Roadmap
-
-### **Planned Features**
-
-- [ ] **User Authentication**: Add JWT-based authentication for secure access.
-- [ ] **Expense Categories**: Implement categorization of expenses (e.g., Food, Transport, Bills).
-- [ ] **Export Functionality**: Allow users to export transactions to CSV or PDF.
-- [ ] **Multi-Currency Support**: Add support for different currencies.
-- [ ] **Advanced Analytics**: Implement charts and graphs for expense analysis.
 
 ### **Future Improvements**
 
