@@ -43,6 +43,7 @@
 This project uses a **stage-wise CI/CD pipeline** built with **GitHub Actions**, **Terraform**, **Docker**, **Helm**, and **Amazon EKS** to automate infrastructure provisioning and application deployment.
 
 The pipeline is manually triggered and deploys the application in a controlled order:
+
 Infrastructure → Backend → Frontend.
 
 
