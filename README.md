@@ -1,7 +1,7 @@
 # 🌟 Expense Tracker - 3-Tier Architecture
 
 
-## ✨ Features
+## Features
 
 ✅ **3-Tier Architecture** - Clean separation of concerns between frontend, backend, and database
 
@@ -23,7 +23,7 @@
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### **Primary Languages & Tools**
 - **Infrastructure Provisioning**: Terraform
@@ -49,7 +49,7 @@ Infrastructure → Backend → Frontend.
 
 ---
 
-### 🧱 Stage 1: Infrastructure Provisioning
+### Stage 1: Infrastructure Provisioning
 
 **Job Name:** infrastructure  
 **Trigger:** Manual (`workflow_dispatch`)
@@ -76,7 +76,7 @@ This stage provisions all required AWS resources using Terraform in a layered ap
 
 ---
 
-### 🧩 Stage 2: Backend CI/CD
+### Stage 2: Backend CI/CD
 
 **Job Name:** backend-deploy  
 **Depends On:** infrastructure
@@ -98,7 +98,7 @@ This stage builds, pushes, and deploys the backend service to Amazon EKS.
 
 ---
 
-### 🎨 Stage 3: Frontend CI/CD
+### Stage 3: Frontend CI/CD
 
 **Job Name:** frontend-deploy  
 **Depends On:** backend-deploy
@@ -122,7 +122,7 @@ This stage builds and deploys the frontend application and integrates it with AW
 
 ---
 
-### 🔐 Secrets & Configuration
+### Secrets & Configuration
 
 #### GitHub Secrets
 - `AWS_ACCESS_KEY_ID`
@@ -137,7 +137,7 @@ This stage builds and deploys the frontend application and integrates it with AW
 
 ---
 
-### 📦 Container & Deployment Strategy
+### Container & Deployment Strategy
 
 - Containerization: Docker
 - Orchestration: Kubernetes (EKS)
@@ -147,7 +147,7 @@ This stage builds and deploys the frontend application and integrates it with AW
 
 ---
 
-### ✅ Benefits of This CI/CD Design
+### Benefits of This CI/CD Design
 
 - Fully automated end-to-end deployment
 - Infrastructure as Code (IaC)
@@ -155,19 +155,6 @@ This stage builds and deploys the frontend application and integrates it with AW
 - Scalable and production-ready setup
 - Secure secret handling
 - Zero-downtime deployments
-
----
-
-## 🛠️ Tech Stack
-
-- CI/CD: GitHub Actions
-- Infrastructure: Terraform
-- Containers: Docker
-- Orchestration: Kubernetes (Amazon EKS)
-- Deployment: Helm
-- Cloud: AWS
-- Ingress: Application Load Balancer
-
 
 ---
 
@@ -198,38 +185,10 @@ This stage builds and deploys the frontend application and integrates it with AW
    terraform apply -auto-approve
    ```
 
-4. **Build and Deploy Docker Images**:
-   ```bash
-   # Build backend Docker image
-   cd backend
-   docker build -t expense-backend .
-
-   # Build frontend Docker image
-   cd ../frontend
-   docker build -t expense-frontend .
-   ```
-
-5. **Deploy to Kubernetes**:
-   ```bash
-   # Navigate to backend Helm chart
-   cd backend/helm
-
-   # Update Helm values with your Docker image version
-   sed -i "s/IMAGE_VERSION/1.5.0/g" values.yaml
-
-   # Deploy backend
-   helm upgrade --install backend ./ --namespace expense --create-namespace
-
-   # Navigate to frontend Helm chart
-   cd ../../frontend/helm
-
-   # Update Helm values with your Docker image version
-   sed -i "s/IMAGE_VERSION/1.2.0/g" values.yaml
-
-   # Deploy frontend
-   helm upgrade --install frontend ./ --namespace expense
-   ```
-
+4. **Run Github workflow**
+   - Creates infra using terraform
+   - Build docker image and pushed to docker
+   - Run the docker image using Kubernetes
 ---
 
 ## 🎯 Usage
